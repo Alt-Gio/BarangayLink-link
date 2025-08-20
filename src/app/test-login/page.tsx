@@ -28,7 +28,7 @@ const TEST_ACCOUNTS = [
   },
   {
     id: 'secretary',
-    name: 'Maria Santos',
+    name: 'Secretary',
     email: 'secretary@barangaylink.gov.ph',
     password: 'secretary123', 
     role: 'SECRETARY',
@@ -38,7 +38,7 @@ const TEST_ACCOUNTS = [
   },
   {
     id: 'treasurer',
-    name: 'Roberto Garcia',
+    name: 'Treasurer',
     email: 'treasurer@barangaylink.gov.ph',
     password: 'treasurer123',
     role: 'TREASURER', 
@@ -48,7 +48,7 @@ const TEST_ACCOUNTS = [
   },
   {
     id: 'councilor',
-    name: 'Ana Reyes',
+    name: 'Count Duck',
     email: 'councilor1@barangaylink.gov.ph',
     password: 'councilor123',
     role: 'COUNCILOR',
@@ -58,7 +58,7 @@ const TEST_ACCOUNTS = [
   },
   {
     id: 'staff',
-    name: 'Elena Villanueva', 
+    name: 'Staff-San', 
     email: 'staff1@barangaylink.gov.ph',
     password: 'staff123',
     role: 'STAFF',
