@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth, MODULE_PERMISSIONS } from '@/context/AuthContext';
+import { toast } from 'sonner';
 import { 
   CheckSquare, 
   Plus, 
@@ -37,9 +38,11 @@ interface Task {
   id: string;
   title: string;
   description: string | null;
-  status: 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'DONE' | 'BLOCKED';
+  status: 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'COMPLETED' | 'CANCELLED' | 'BLOCKED' | 'ON_HOLD';
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT' | 'CRITICAL';
   dueDate: string | null;
+  startDate: string | null;
+  completedDate: string | null;
   estimatedHours: number | null;
   actualHours: number | null;
   createdAt: string;
@@ -47,7 +50,7 @@ interface Task {
   projectId: string;
   project: {
     id: string;
-    title: string;
+    name: string;
     category: string;
   };
   assignees: Array<{
@@ -63,7 +66,7 @@ interface Task {
   checklists: Array<{
     id: string;
     text: string;
-    isCompleted: boolean;
+    completed: boolean;
     order: number;
   }>;
   _count: {
@@ -78,7 +81,7 @@ interface TaskStats {
   inProgress: number;
   review: number;
   blocked: number;
-  done: number;
+  completed: number;
 }
 
 
@@ -88,7 +91,7 @@ const statusColumns = [
   { id: 'IN_PROGRESS', title: 'In Progress', color: 'bg-blue-900/20 border-blue-700', count: 0 },
   { id: 'REVIEW', title: 'Review', color: 'bg-purple-900/20 border-purple-700', count: 0 },
   { id: 'BLOCKED', title: 'Blocked', color: 'bg-red-900/20 border-red-700', count: 0 },
-  { id: 'DONE', title: 'Done', color: 'bg-green-900/20 border-green-700', count: 0 },
+  { id: 'COMPLETED', title: 'Completed', color: 'bg-green-900/20 border-green-700', count: 0 },
 ];
 
 const priorityColors = {
@@ -111,8 +114,10 @@ const statusIcons = {
   TODO: Clock,
   IN_PROGRESS: Play,
   REVIEW: Eye,
+  COMPLETED: CheckCircle,
+  CANCELLED: AlertTriangle,
   BLOCKED: AlertTriangle,
-  DONE: CheckCircle,
+  ON_HOLD: Pause,
 };
 
 export function TaskManagement() {
@@ -140,7 +145,8 @@ export function TaskManagement() {
 
       const response = await fetch('/api/tasks');
       if (!response.ok) {
-        throw new Error('Failed to fetch tasks');
+        const errorData = await response.json();
+        throw new Error(errorData.details || errorData.error || 'Failed to fetch tasks');
       }
 
       const data = await response.json();
@@ -153,7 +159,7 @@ export function TaskManagement() {
         inProgress: data?.filter((t: Task) => t.status === 'IN_PROGRESS').length || 0,
         review: data?.filter((t: Task) => t.status === 'REVIEW').length || 0,
         blocked: data?.filter((t: Task) => t.status === 'BLOCKED').length || 0,
-        done: data?.filter((t: Task) => t.status === 'DONE').length || 0,
+        completed: data?.filter((t: Task) => t.status === 'COMPLETED').length || 0,
       };
       
       setStats(taskStats);
@@ -181,14 +187,17 @@ export function TaskManagement() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to delete task');
+        const errorData = await response.json();
+        throw new Error(errorData.details || errorData.error || 'Failed to delete task');
       }
 
       // Refresh tasks list
       fetchTasks();
+      toast.success('Task deleted successfully!');
     } catch (err) {
       console.error('Error deleting task:', err);
-      alert('Failed to delete task. Please try again.');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete task';
+      toast.error(errorMessage);
     }
   };
 
@@ -208,14 +217,15 @@ export function TaskManagement() {
     count: filteredTasks.filter(task => task.status === column.id).length
   }));
 
-  const projects = Array.from(new Set(tasks.map(task => task.project.title).filter(Boolean)));
+  const projects = Array.from(new Set(tasks.map(task => task.project.name).filter(Boolean)));
   const assignees = Array.from(new Set(tasks.flatMap(task => task.assignees.map(a => a.name))));
 
   const TaskCard = ({ task }: { task: Task }) => {
     const PriorityIcon = priorityIcons[task.priority];
     const StatusIcon = statusIcons[task.status];
-    const isOverdue = new Date(task.dueDate) < new Date() && task.status !== 'DONE';
-    const progressPercentage = task.subtasks > 0 ? (task.completedSubtasks / task.subtasks) * 100 : 0;
+    const isOverdue = task.dueDate ? new Date(task.dueDate) < new Date() && task.status !== 'COMPLETED' : false;
+    const completedChecklists = task.checklists.filter(checklist => checklist.completed).length;
+    const progressPercentage = task.checklists.length > 0 ? (completedChecklists / task.checklists.length) * 100 : 0;
 
     return (
       <div 
@@ -242,21 +252,21 @@ export function TaskManagement() {
         <p className="text-sm text-gray-400 mb-3 line-clamp-2">{task.description}</p>
 
         {/* Project Badge */}
-        {task.projectName && (
+        {task.project.name && (
           <div className="mb-3">
             <span className="inline-flex items-center px-2 py-1 bg-blue-900/20 text-blue-300 rounded text-xs">
               <Target className="w-3 h-3 mr-1" />
-              {task.projectName}
+              {task.project.name}
             </span>
           </div>
         )}
 
         {/* Progress */}
-        {task.subtasks > 0 && (
+        {task.checklists.length > 0 && (
           <div className="mb-3">
             <div className="flex justify-between text-xs text-gray-400 mb-1">
-              <span>Subtasks</span>
-              <span>{task.completedSubtasks}/{task.subtasks}</span>
+              <span>Checklist</span>
+              <span>{completedChecklists}/{task.checklists.length}</span>
             </div>
             <div className="bg-gray-700 rounded-full h-1">
               <div 
@@ -264,22 +274,6 @@ export function TaskManagement() {
                 style={{ width: `${progressPercentage}%` }}
               />
             </div>
-          </div>
-        )}
-
-        {/* Tags */}
-        {task.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-3">
-            {task.tags.slice(0, 3).map((tag, index) => (
-              <span key={index} className="px-2 py-1 bg-gray-700 text-gray-300 rounded text-xs">
-                #{tag}
-              </span>
-            ))}
-            {task.tags.length > 3 && (
-              <span className="px-2 py-1 bg-gray-700 text-gray-300 rounded text-xs">
-                +{task.tags.length - 3}
-              </span>
-            )}
           </div>
         )}
 
@@ -472,7 +466,7 @@ export function TaskManagement() {
       {/* Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
         {statusColumns.map(column => {
-          const count = mockTasks.filter(task => task.status === column.id).length;
+          const count = tasks.filter(task => task.status === column.id).length;
           const StatusIcon = statusIcons[column.id];
           
           return (

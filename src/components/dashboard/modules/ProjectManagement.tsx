@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth, MODULE_PERMISSIONS } from '@/context/AuthContext';
+import { toast } from 'sonner';
 import { 
   FolderOpen, 
   Plus, 
@@ -24,7 +25,8 @@ import {
   Target,
   Download,
   RefreshCw,
-  Loader2
+  Loader2,
+  Shield
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -38,6 +40,7 @@ interface Project {
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT' | 'CRITICAL';
   budget: number;
   progress: number;
+  progressPercentage?: number;
   startDate: string;
   endDate: string;
   location: string;
@@ -97,6 +100,11 @@ export function ProjectManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
+  // Add state for user access info
+  const [userAccess, setUserAccess] = useState<{
+    role: string;
+    accessLevel: string;
+  } | null>(null);
 
   const canCreate = hasPermission(MODULE_PERMISSIONS.PROJECT_MANAGEMENT.CREATE);
   const canEdit = hasPermission(MODULE_PERMISSIONS.PROJECT_MANAGEMENT.EDIT);
@@ -109,28 +117,41 @@ export function ProjectManagement() {
       setError(null);
 
       const response = await fetch('/api/projects');
+      
       if (!response.ok) {
-        throw new Error('Failed to fetch projects');
+        const errorData = await response.json();
+        throw new Error(errorData.details || errorData.error || 'Failed to fetch projects');
       }
 
       const data = await response.json();
-      setProjects(data.projects || []);
       
-      // Calculate stats from fetched data
+      const projectsArray = data.projects || [];
+      setProjects(projectsArray);
+      
+      // Set user access info
+      setUserAccess({
+        role: data.userRole || 'PUBLIC',
+        accessLevel: data.accessLevel || 'public'
+      });
+      
+      // Calculate stats
       const projectStats: ProjectStats = {
-        total: data.projects?.length || 0,
-        active: data.projects?.filter((p: Project) => p.status === 'IN_PROGRESS').length || 0,
-        completed: data.projects?.filter((p: Project) => p.status === 'COMPLETED').length || 0,
-        averageProgress: data.projects?.length > 0 
-          ? Math.round(data.projects.reduce((sum: number, p: Project) => sum + p.progress, 0) / data.projects.length)
+        total: projectsArray.length,
+        active: projectsArray.filter((p: any) => p.status === 'IN_PROGRESS').length,
+        completed: projectsArray.filter((p: any) => p.status === 'COMPLETED').length,
+        averageProgress: projectsArray.length > 0 
+          ? Math.round(projectsArray.reduce((sum: number, p: any) => sum + (p.progressPercentage || p.progress || 0), 0) / projectsArray.length)
           : 0,
-        totalBudget: data.projects?.reduce((sum: number, p: Project) => sum + (p.budget || 0), 0) || 0
+        totalBudget: projectsArray.reduce((sum: number, p: any) => sum + (p.budget || 0), 0)
       };
       
       setStats(projectStats);
+      
     } catch (err) {
       console.error('Error fetching projects:', err);
-      setError('Failed to load projects');
+      setError(err instanceof Error ? err.message : 'Failed to load projects');
+      setProjects([]);
+      setStats({ total: 0, active: 0, completed: 0, averageProgress: 0, totalBudget: 0 });
     } finally {
       setLoading(false);
     }
@@ -152,14 +173,17 @@ export function ProjectManagement() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to delete project');
+        const errorData = await response.json();
+        throw new Error(errorData.details || errorData.error || 'Failed to delete project');
       }
 
       // Refresh projects list
       fetchProjects();
+      toast.success('Project deleted successfully!');
     } catch (err) {
       console.error('Error deleting project:', err);
-      alert('Failed to delete project. Please try again.');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete project';
+      toast.error(errorMessage);
     }
   };
 
@@ -237,12 +261,12 @@ export function ProjectManagement() {
         <div className="mb-4">
           <div className="flex justify-between items-center mb-2">
             <span className="text-sm text-gray-300">Progress</span>
-            <span className="text-sm font-medium text-gray-100">{project.progress}%</span>
+            <span className="text-sm font-medium text-gray-100">{project.progressPercentage || project.progress}%</span>
           </div>
           <div className="bg-gray-700 rounded-full h-2 mb-2">
             <div 
               className="bg-green-500 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${project.progress}%` }}
+              style={{ width: `${project.progressPercentage || project.progress}%` }}
             />
           </div>
         </div>
@@ -318,6 +342,18 @@ export function ProjectManagement() {
     );
   };
 
+  const getAccessDescription = (level: string): string => {
+    switch (level) {
+      case 'full': return 'Full system access - can view and manage all projects';
+      case 'executive': return 'Executive access - can view all projects and approve/reject';
+      case 'departmental': return 'Department access - can view assigned and public projects';
+      case 'committee': return 'Committee access - can view committee and assigned projects';
+      case 'assigned': return 'Limited access - can view assigned tasks and public projects';
+      case 'public': return 'Public access - can view public projects only';
+      default: return 'Basic access level';
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -342,6 +378,23 @@ export function ProjectManagement() {
           </button>
         </div>
       </div>
+
+      {/* Role-Based Access Indicator */}
+      {userAccess && (
+        <div className="bg-blue-900/20 border border-blue-700 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <Shield className="w-5 h-5 text-blue-400" />
+            <div>
+              <h3 className="font-medium text-blue-300">
+                Access Level: {userAccess.role.replace('_', ' ')}
+              </h3>
+              <p className="text-sm text-blue-200">
+                {getAccessDescription(userAccess.accessLevel)}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Error State */}
       {error && (

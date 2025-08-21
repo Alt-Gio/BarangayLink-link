@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { clerkClient } from '@clerk/nextjs/server';
 
-// Define UserRole enum locally since it's having import issues
 type UserRole = 'ADMIN' | 'BARANGAY_CAPTAIN' | 'SECRETARY' | 'TREASURER' | 'COUNCILOR' | 'STAFF';
 
 export async function POST(request: NextRequest) {
@@ -16,76 +15,64 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log('Syncing user:', { clerkUserId, email, name });
+
     // Check if user already exists
     let user = await prisma.user.findUnique({
       where: { clerkUserId }
     });
 
     if (!user) {
-      try {
-        // Get full user data from Clerk including metadata
-        const clerkUser = await clerkClient.users.getUser(clerkUserId);
-        const metadata = clerkUser.unsafeMetadata as Record<string, unknown>;
+      // For TEST MODE: Auto-assign roles based on email patterns
+      let role: UserRole = 'STAFF';
+      let position = 'Staff Member';
+      
+      // Test user role assignment based on email/name patterns
+      if (email.includes('admin') || name.toLowerCase().includes('admin')) {
+        role = 'ADMIN';
+        position = 'System Administrator';
+      } else if (email.includes('captain') || name.toLowerCase().includes('captain')) {
+        role = 'BARANGAY_CAPTAIN';
+        position = 'Barangay Captain';
+      } else if (email.includes('secretary') || name.toLowerCase().includes('secretary')) {
+        role = 'SECRETARY';
+        position = 'Barangay Secretary';
+      } else if (email.includes('treasurer') || name.toLowerCase().includes('treasurer')) {
+        role = 'TREASURER';
+        position = 'Barangay Treasurer';
+      } else if (email.includes('councilor') || name.toLowerCase().includes('councilor')) {
+        role = 'COUNCILOR';
+        position = 'Barangay Councilor';
+      }
 
-        console.log('Creating new user with Clerk data:', {
+      console.log('Creating new user with role:', role);
+
+      user = await prisma.user.create({
+        data: {
           clerkUserId,
           name,
           email,
-          metadata
-        });
-
-        // Create new user with registration data
-        user = await prisma.user.create({
-          data: {
-            clerkUserId,
-            name,
-            email,
-            position: metadata?.jobTitle || 'New User',
-            role: metadata?.role as UserRole || 'STAFF',
-            phone: metadata?.phone || null,
-            address: metadata?.address || null,
-            isActive: !metadata?.needsApproval, // Active if doesn't need approval
-            // Store additional registration info in metadata
-            metadata: {
-              registrationDate: metadata?.registrationDate || new Date().toISOString(),
-              needsApproval: metadata?.needsApproval || false,
-              isApproved: metadata?.isApproved || false
-            }
+          position,
+          role,
+          phoneNumber: null,
+          isActive: true, // Auto-activate test users
+          metadata: {
+            isTestUser: true,
+            registrationDate: new Date().toISOString(),
+            autoAssignedRole: role
           }
-        });
+        }
+      });
 
-        console.log('Successfully created user:', user);
-      } catch (clerkError) {
-        console.error('Error fetching from Clerk, creating basic user:', clerkError);
-        
-        // Fallback: create basic user without metadata for users without registration data
-        user = await prisma.user.create({
-          data: {
-            clerkUserId,
-            name,
-            email,
-            position: 'User',
-            role: 'STAFF',
-            isActive: true,
-            metadata: {
-              registrationDate: new Date().toISOString(),
-              needsApproval: false,
-              isApproved: true
-            }
-          }
-        });
-        
-        console.log('Created fallback user:', user);
-      }
+      console.log('Successfully created user:', user);
     } else {
       // Update last active timestamp
       await prisma.user.update({
         where: { id: user.id },
         data: { 
           lastActiveAt: new Date(),
-          // Update name and email in case they changed in Clerk
-          name,
-          email
+          name, // Update name in case it changed
+          email // Update email in case it changed
         }
       });
     }

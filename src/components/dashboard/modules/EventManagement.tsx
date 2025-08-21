@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth, MODULE_PERMISSIONS } from '@/context/AuthContext';
+import { toast } from 'sonner';
 import { 
   Calendar, 
   Plus, 
@@ -53,12 +54,14 @@ interface Event {
   createdBy: {
     name: string;
   };
-  attendees: Array<{
+  attendees?: Array<{
     id: string;
     name: string;
   }>;
   _count: {
-    attendees: number;
+    announcements: number;
+    documents: number;
+    activityLogs: number;
   };
 }
 
@@ -131,27 +134,38 @@ export function EventManagement() {
 
       const response = await fetch('/api/events');
       if (!response.ok) {
-        throw new Error('Failed to fetch events');
+        const errorData = await response.json();
+        throw new Error(errorData.details || errorData.error || 'Failed to fetch events');
       }
 
       const data = await response.json();
-      setEvents(data.events || []);
+      const eventsArray = data.events || [];
+      setEvents(eventsArray);
       
       // Calculate stats from fetched data
       const now = new Date();
       const eventStats: EventStats = {
-        total: data.events?.length || 0,
-        upcoming: data.events?.filter((e: Event) => new Date(e.startDate) > now && e.status !== 'CANCELLED').length || 0,
-        inProgress: data.events?.filter((e: Event) => e.status === 'IN_PROGRESS').length || 0,
-        completed: data.events?.filter((e: Event) => e.status === 'COMPLETED').length || 0,
-        publicEvents: data.events?.filter((e: Event) => e.isPublic).length || 0,
-        totalAttendees: data.events?.reduce((sum: number, e: Event) => sum + e.actualAttendees, 0) || 0,
+        total: eventsArray.length,
+        upcoming: eventsArray.filter((e: Event) => new Date(e.startDate) > now && e.status !== 'CANCELLED').length,
+        inProgress: eventsArray.filter((e: Event) => e.status === 'IN_PROGRESS').length,
+        completed: eventsArray.filter((e: Event) => e.status === 'COMPLETED').length,
+        publicEvents: eventsArray.filter((e: Event) => e.isPublic).length,
+        totalAttendees: eventsArray.reduce((sum: number, e: Event) => sum + (e.actualAttendees || 0), 0),
       };
       
       setStats(eventStats);
     } catch (err) {
       console.error('Error fetching events:', err);
-      setError('Failed to load events');
+      setError(err instanceof Error ? err.message : 'Failed to load events');
+      setEvents([]);
+      setStats({
+        total: 0,
+        upcoming: 0,
+        inProgress: 0,
+        completed: 0,
+        publicEvents: 0,
+        totalAttendees: 0
+      });
     } finally {
       setLoading(false);
     }
@@ -173,14 +187,17 @@ export function EventManagement() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to delete event');
+        const errorData = await response.json();
+        throw new Error(errorData.details || errorData.error || 'Failed to delete event');
       }
 
       // Refresh events list
       fetchEvents();
+      toast.success('Event deleted successfully!');
     } catch (err) {
       console.error('Error deleting event:', err);
-      alert('Failed to delete event. Please try again.');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete event';
+      toast.error(errorMessage);
     }
   };
 

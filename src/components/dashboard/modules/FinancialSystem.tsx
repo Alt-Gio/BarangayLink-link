@@ -194,18 +194,24 @@ export function FinancialSystem() {
       ]);
 
       if (!projectsResponse.ok || !eventsResponse.ok) {
-        throw new Error('Failed to fetch financial data');
+        const projectsError = !projectsResponse.ok ? await projectsResponse.json() : null;
+        const eventsError = !eventsResponse.ok ? await eventsResponse.json() : null;
+        
+        const errorMessage = projectsError?.details || eventsError?.details || 
+                           projectsError?.error || eventsError?.error || 
+                           'Failed to fetch financial data';
+        throw new Error(errorMessage);
       }
 
       const projectsData = await projectsResponse.json();
       const eventsData = await eventsResponse.json();
 
-      // Handle potential API errors
+      // Handle potential API errors in response body
       if (projectsData.error) {
-        throw new Error(projectsData.error);
+        throw new Error(projectsData.details || projectsData.error);
       }
       if (eventsData.error) {
-        throw new Error(eventsData.error);
+        throw new Error(eventsData.details || eventsData.error);
       }
 
       const projectItems = projectsData.projects || [];
@@ -276,7 +282,8 @@ export function FinancialSystem() {
       setSummary(financialSummary);
     } catch (err) {
       console.error('Error fetching financial data:', err);
-      setError('Failed to load financial data');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load financial data';
+      setError(errorMessage);
       
       // Set fallback data so the page can still render
       const fallbackSummary: FinancialSummary = {

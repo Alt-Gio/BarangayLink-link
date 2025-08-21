@@ -45,6 +45,8 @@ interface ProjectFormData {
   team: string[];
   objectives: string[];
   deliverables: string[];
+  methodology: string;
+  expectedOutcome: string;
   tasks: ProjectTask[];
   isPublic: boolean;
   featuredOnLanding: boolean;
@@ -62,6 +64,8 @@ const initialFormData: ProjectFormData = {
   team: [],
   objectives: [],
   deliverables: [],
+  methodology: '',
+  expectedOutcome: '',
   tasks: [],
   isPublic: true,
   featuredOnLanding: false,
@@ -249,15 +253,55 @@ export function ProjectCreationForm() {
 
     setIsSubmitting(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const response = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.title,
+          description: formData.description,
+          category: formData.category,
+          priority: formData.priority || 'MEDIUM',
+          budget: formData.budget,
+          startDate: formData.startDate,
+          endDate: formData.endDate,
+          objectives: formData.objectives.join('\n'),
+          beneficiaries: formData.beneficiaries.join('\n'),
+          location: formData.location,
+          methodology: formData.methodology,
+          expectedOutcome: formData.expectedOutcome,
+          isPublic: formData.isPublic
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.details || errorData.error || 'Failed to create project');
+      }
+
+      const project = await response.json();
       
-      // In real implementation, this would be an API call
-      console.log('Project data to submit:', formData);
+      // Create tasks for the project if any
+      if (formData.tasks.length > 0) {
+        for (const task of formData.tasks) {
+          await fetch('/api/tasks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: task.title,
+              description: task.description,
+              projectId: project.id,
+              priority: task.priority || 'MEDIUM',
+              dueDate: task.endDate,
+              estimatedHours: task.estimatedHours
+            })
+          });
+        }
+      }
       
-      router.push('/dashboard/projects?created=true');
+      router.push(`/dashboard/projects?created=true`);
     } catch (error) {
       console.error('Error creating project:', error);
+      alert(`Failed to create project: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsSubmitting(false);
     }

@@ -262,6 +262,21 @@ export const taskHelpers = {
       },
     });
 
+    // Update project progress when new task is created
+    const projectTasks = await prisma.task.findMany({
+      where: { projectId: data.projectId }
+    });
+    
+    const completedTasks = projectTasks.filter(t => t.status === TaskStatus.COMPLETED);
+    const progressPercentage = projectTasks.length > 0 
+      ? Math.round((completedTasks.length / projectTasks.length) * 100) 
+      : 0;
+      
+    await prisma.project.update({
+      where: { id: data.projectId },
+      data: { progressPercentage }
+    });
+
     await logActivity(
       data.createdById,
       ActivityAction.CREATED,
@@ -292,6 +307,23 @@ export const taskHelpers = {
         project: true,
       },
     });
+
+    // Auto-update project progress when task status changes
+    if (task.projectId) {
+      const projectTasks = await prisma.task.findMany({
+        where: { projectId: task.projectId }
+      });
+      
+      const completedTasks = projectTasks.filter(t => t.status === TaskStatus.COMPLETED);
+      const progressPercentage = projectTasks.length > 0 
+        ? Math.round((completedTasks.length / projectTasks.length) * 100) 
+        : 0;
+        
+      await prisma.project.update({
+        where: { id: task.projectId },
+        data: { progressPercentage }
+      });
+    }
 
     const actionMap = {
       [TaskStatus.COMPLETED]: ActivityAction.TASK_COMPLETED,
