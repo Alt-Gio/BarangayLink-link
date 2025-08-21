@@ -2,6 +2,34 @@
 
 A modern, responsive, and PWA-optimized digital platform for Barangay Bitano community services and governance.
 
+## 🚀 New: Supabase Integration
+
+This project now includes **Supabase** integration for enhanced performance, real-time features, and better scalability. The database has been optimized with:
+
+- **Real-time subscriptions** for live updates
+- **Performance indexes** for faster queries
+- **Connection pooling** for better resource management
+- **Type-safe operations** with comprehensive TypeScript support
+
+### Quick Start with Supabase
+
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+2. **Run the automated setup:**
+   ```bash
+   npm run supabase:setup
+   ```
+
+3. **Start development:**
+   ```bash
+   npm run dev
+   ```
+
+For detailed migration instructions, see [SUPABASE_MIGRATION_GUIDE.md](./SUPABASE_MIGRATION_GUIDE.md).
+
 ## 🚀 Features
 
 - **✨ Modern Landing Page** - Beautiful, responsive design with dark/light mode

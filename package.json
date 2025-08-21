@@ -14,7 +14,12 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma db push --force-reset && tsx prisma/seed.ts",
     "db:migrate": "prisma migrate dev",
-    "db:deploy": "prisma migrate deploy"
+    "db:deploy": "prisma migrate deploy",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "supabase:status": "supabase status",
+    "supabase:db:reset": "supabase db reset",
+    "supabase:db:push": "supabase db push"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.30.2",
@@ -25,6 +30,7 @@
     "@prisma/client": "^6.14.0",
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-tabs": "^1.1.13",
+    "@supabase/supabase-js": "^2.45.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.539.0",
@@ -45,6 +51,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@supabase/cli": "^1.145.4",
     "@tailwindcss/postcss": "^4.1.12",
     "@types/node": "^20",
     "@types/react": "^19",
