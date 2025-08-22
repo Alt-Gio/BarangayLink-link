@@ -16,4 +16,7 @@ Sentry.init({
   debug: false,
 });
 
-export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
+// Router transition tracking is now handled automatically by Sentry
+export const onRouterTransitionStart = () => {
+  // This function is no longer needed as Sentry handles router transitions automatically
+};

@@ -14,7 +14,7 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   experimental: {
-    optimizePackageImports: ['lucide-react'],
+    optimizePackageImports: ['lucide-react', 'gsap'],
   },
   compiler: {
     removeConsole: process.env.NODE_ENV === "production",

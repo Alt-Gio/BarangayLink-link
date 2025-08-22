@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import 'mapbox-gl/dist/mapbox-gl.css';
 
 :root {
   --background: #111827;
@@ -142,6 +143,83 @@ body {
 /* Smooth scrolling */
 html {
   scroll-behavior: smooth;
+}
+
+/* GSAP Performance Optimizations */
+* {
+  will-change: auto;
+}
+
+.gsap-marker-start,
+.gsap-marker-end,
+.gsap-marker-scroller-start,
+.gsap-marker-scroller-end {
+  display: none !important;
+}
+
+/* Enhanced animations for GSAP */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(34, 197, 94, 0.6);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Performance optimizations */
+.parallax-bg {
+  will-change: transform;
+}
+
+.floating-elements {
+  will-change: transform;
+}
+
+.nav-item {
+  will-change: transform, opacity;
+}
+
+.stat-card {
+  will-change: transform, opacity;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  .floating-elements {
+    animation: none !important;
+  }
+  
+  .parallax-bg {
+    transform: none !important;
+  }
 }
 
 /* Loading states */
